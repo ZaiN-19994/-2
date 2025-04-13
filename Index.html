@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2-/Edit</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+    input, button { margin: 10px; padding: 10px; display: block; width: 80%; margin: 10px auto; }
+    .link-container { margin-top: 20px; }
+    .open-link {
+      font-size: 16px;
+      color: #007bff;
+      cursor: pointer;
+      display: inline-block;
+      margin-right: 10px;
+    }
+    .open-link:hover { text-decoration: underline; }
+    iframe {
+      width: 90%;
+      height: 500px;
+      display: none;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Z1-edit</h2>
+
+  <!-- إدخال التوكن -->
+  <div>
+    <input type="text" id="tokenInput" placeholder="أدخل التوكن">
+    <button onclick="restoreValue('tokenInput')" title="آخر تعديل">⭐</button>
+  </div>
+
+  <div>
+    <input type="text" id="newTitle" placeholder="أدخل العنوان الجديد">
+    <button onclick="restoreValue('newTitle')" title="آخر تعديل">⭐</button>
+  </div>
+  <div>
+    <input type="text" id="newLink" placeholder="أدخل الرابط الجديد للفيديو">
+    <button onclick="restoreValue('newLink')" title="آخر تعديل">⭐</button>
+  </div>
+  <div>
+    <input type="text" id="newImage" placeholder="أدخل رابط الصورة الجديدة">
+    <button onclick="restoreValue('newImage')" title="آخر تعديل">⭐</button>
+  </div>
+
+  <button onclick="updateContent()">حفظ التعديل</button>
+  <p id="status"></p>
+
+  <!-- رابط الصفحة مع زر المعاينة -->
+  <div class="link-container">
+    <span class="open-link" onclick="navigateToPage()">🔷</span>
+    <button onclick="previewInIframe()" title="معاينة داخل الصفحة">👁️</button>
+  </div>
+
+  <!-- IFRAME للمعاينة -->
+  <iframe id="previewFrame"></iframe>
+
+  <script>
+    const blogId = "3897380749017684387";
+    const postId = "681492597667924893";
+
+    let token = localStorage.getItem("bloggerToken");
+    if (!token) {
+      document.getElementById("tokenInput").placeholder = "أدخل التوكن";
+    } else {
+      document.getElementById("tokenInput").value = token;
+    }
+
+    async function updateContent() {
+      token = document.getElementById("tokenInput").value;
+      localStorage.setItem("bloggerToken", token);
+
+      const newTitle = document.getElementById("newTitle").value;
+      const newLink = document.getElementById("newLink").value;
+      const newImage = document.getElementById("newImage").value;
+
+      if (!newTitle && !newLink && !newImage) {
+        alert("يرجى إدخال بيانات جديدة للتحديث!");
+        return;
+      }
+
+      const url = `https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/${postId}`;
+
+      try {
+        const getResponse = await fetch(url + "?fields=content,title", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!getResponse.ok) {
+          throw new Error("فشل في جلب التدوينة");
+        }
+
+        const postData = await getResponse.json();
+        let content = postData.content;
+
+        if (newTitle) {
+          postData.title = newTitle;
+        }
+        if (newLink) {
+          content = content.replace(/file:"(https?:\/\/[^"\s]+)"/, `file:"${newLink}"`);
+        }
+        if (newImage) {
+          content = content.replace(
+            /<meta property="og:image" content="(.*?)"\s*\/?>/,
+            `<meta property="og:image" content="${newImage}" />`
+          );
+          content = content.replace(
+            /<img class="poster" src="(.*?)" alt="بوستر الفيلم">/,
+            `<img class="poster" src="${newImage}" alt="بوستر الفيلم">`
+          );
+        }
+
+        const updateResponse = await fetch(url, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            title: postData.title,
+            content: content
+          })
+        });
+
+        if (updateResponse.ok) {
+          document.getElementById("status").innerText = "تم تعديل التدوينة بنجاح!";
+          localStorage.setItem("lastTitle", newTitle);
+          localStorage.setItem("lastLink", newLink);
+          localStorage.setItem("lastImage", newImage);
+          setTimeout(() => {
+            document.getElementById("status").innerText = "";
+          }, 10000);
+        } else {
+          throw new Error("فشل في تعديل التدوينة");
+        }
+      } catch (error) {
+        document.getElementById("status").innerText = "حدث خطأ أثناء التعديل!";
+        console.error("خطأ: ", error);
+      }
+    }
+
+    function restoreValue(id) {
+      let value = "";
+      if (id === "newTitle") value = localStorage.getItem("lastTitle") || "";
+      if (id === "newLink") value = localStorage.getItem("lastLink") || "";
+      if (id === "newImage") value = localStorage.getItem("lastImage") || "";
+      if (id === "tokenInput") value = localStorage.getItem("bloggerToken") || "";
+
+      if (value) {
+        document.getElementById(id).value = value;
+      } else {
+        alert("لا يوجد تعديل سابق محفوظ!");
+      }
+    }
+
+    function navigateToPage() {
+      const pageLink = 'https://zainco94.blogspot.com/2025/04/-.html';
+      window.location.href = pageLink;
+    }
+
+    function previewInIframe() {
+      const iframe = document.getElementById("previewFrame");
+      iframe.src = "https://zainco94.blogspot.com/2025/04/-.html";
+      iframe.style.display = "block";
+    }
+  </script>
+</body>
+</html>
